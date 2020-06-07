@@ -1,0 +1,45 @@
+name: libpq-notify
+version: 0.1.0.0
+synopsis: PostgreSQL libpq based notifications library
+description:         Please see README.md
+homepage:            https://github.com/jfischoff/hasql-notifications#readme
+license:             BSD3
+license-file:        LICENSE
+author: Jonathan Fischoff
+maintainer:          jonathan.g.fischoff@gmail.com
+copyright: 2020
+category: Database
+build-type: Simple
+cabal-version: >=1.10
+
+library
+  hs-source-dirs: src
+  exposed-modules: Database.PostgreSQL.LibPQ.Notify
+  build-depends: base < 5
+               , bytestring
+               , postgresql-libpq
+               , stm
+  ghc-options: -Wall
+  default-language: Haskell2010
+
+test-suite test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Main.hs
+  build-depends:       base
+                     , bytestring
+                     , libpq-notify
+                     , hspec
+                     , postgresql-libpq
+                     , text
+                     , tmp-postgres
+                     , postgres-options
+                     , async
+                     , network
+                     , containers
+  ghc-options: -Wall -threaded -debug -rtsopts
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/jfischoff/libpq-notify
