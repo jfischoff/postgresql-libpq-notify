@@ -25,10 +25,10 @@ likely cheaper on the client side as well.
 <http://hackage.haskell.org/trac/ghc/ticket/7353>
 
 PostgreSQL notifications support using the same connection for sending and
-recieving notifications. This pattern is particularly useful in tests and
+receiving notifications. This pattern is particularly useful in tests and
 probably not that useful otherwise.
 
-This library relies on receiving notifications that new data is available to
+This library relies on receiving OS notifications that new data is available to
 read from the connection's socket. However both epoll_wait and kqueue do
 not return if recvfrom is able to clear the socket receive buffer
 before they verify there is data available.
@@ -49,7 +49,6 @@ module Database.PostgreSQL.LibPQ.Notify
      , getNotificationWithConfig
      , defaultConfig
      , Config (..)
-     , wakeupRead
      ) where
 
 import           Control.Exception (try, throwIO)
@@ -70,15 +69,15 @@ data Config = Config
   { interrupt              :: Maybe (IO ())
   -- ^ Custom interrupt
   , interrupted            :: IO ()
-  -- ^ Event hook called if the 'interrupt' is set and returns
+  -- ^ Event called if the 'interrupt' is set and returns
   --   before the 'threadWaitReadSTM' action returns.
   , threadWaitReadReturned :: IO ()
-  -- ^ Event hook called if 'threadWaitReadSTM' action returns before the
+  -- ^ Event called if 'threadWaitReadSTM' action returns before the
   --   'interrupt' returns action (if one is set).
   , startLoop              :: IO ()
   -- ^ Called each time 'getNotificationWithConfig' loops to look for another notification
   , beforeWait             :: IO ()
-  -- ^ Event hook called before the thread will
+  -- ^ Event called before the thread will
   -- wait on new data or 'interrupt' returning.
 #if defined(mingw32_HOST_OS)
   , retryDelay             :: Int
