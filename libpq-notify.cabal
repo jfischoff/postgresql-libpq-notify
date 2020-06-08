@@ -1,7 +1,7 @@
 name: libpq-notify
 version: 0.1.0.0
-synopsis: Postgres notifications
-description:         Please see README.md
+synopsis: Minimal dependency PostgreSQL notifications library
+description: Minimal dependency PostgreSQL notifications library. Please see README.md
 homepage:            https://github.com/jfischoff/hasql-notifications#readme
 license:             BSD3
 license-file:        LICENSE
