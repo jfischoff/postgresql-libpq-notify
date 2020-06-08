@@ -55,18 +55,36 @@ withSetup f = either throwIO pure <=< Temp.withDbCache $ \dbCache ->
 
 spec :: Spec
 spec = aroundAll withSetup $ do
-  describe "getNotification'" $ it "should return a notification" $ \conn -> do
-    connVar <- newMVar conn
-    ender <- newEmptyMVar
-    let initialChannel = "channel"
-        initialData = "hi!"
-    _ <- withMVar connVar $ \c -> PQ.exec c $ "LISTEN " <> initialChannel
-    _ <- forkIO $ do
-           _ <- withMVar connVar $ \c ->  PQ.exec c ("NOTIFY " <> initialChannel <> ", '" <> initialData <>"';")
-           putMVar ender ()
+  describe "getNotificationWithConfig" $ describe "returns a notification" $ do
+    it "before" $ \conn -> do
+      connVar <- newMVar conn
+      let initialChannel = "channel"
+          initialData = "hi!"
+      _ <- withMVar connVar $ \c -> do
+          _ <- PQ.exec c $ "LISTEN " <> initialChannel
+          PQ.exec c ("NOTIFY " <> initialChannel <> ", '" <> initialData <>"';")
 
-    let config = defaultConfig { interrupt = Just $ takeMVar ender }
+      Right PQ.Notify {..} <- getNotification withMVar connVar
+      notifyRelname `shouldBe` initialChannel
+      notifyExtra `shouldBe` initialData
 
-    Right PQ.Notify {..} <- getNotificationWithConfig config withMVar connVar
-    notifyRelname `shouldBe` initialChannel
-    notifyExtra `shouldBe` initialData
+    it "after file notifications are registered" $ \conn -> do
+      connVar <- newMVar conn
+      ender <- newEmptyMVar
+      beforeWaiter <- newEmptyMVar
+      let initialChannel = "channel"
+          initialData = "hi!"
+      _ <- withMVar connVar $ \c -> PQ.exec c $ "LISTEN " <> initialChannel
+      _ <- forkIO $ do
+             takeMVar beforeWaiter
+             _ <- withMVar connVar $ \c ->  PQ.exec c ("NOTIFY " <> initialChannel <> ", '" <> initialData <>"';")
+             putMVar ender ()
+
+      let config = defaultConfig
+            { interrupt  = Just $ takeMVar ender
+            , beforeWait = putMVar beforeWaiter ()
+            }
+
+      Right PQ.Notify {..} <- getNotificationWithConfig config withMVar connVar
+      notifyRelname `shouldBe` initialChannel
+      notifyExtra `shouldBe` initialData
