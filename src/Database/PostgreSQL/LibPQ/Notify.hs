@@ -31,14 +31,15 @@ probably not that useful otherwise.
 This library relies on receiving notifications that new data is available to
 read from the connection's socket. However both epoll_wait and kqueue do
 not return if recvfrom is able to clear the socket receive buffer
-before they verify epoll_wait/kqueue verify there is data available.
+before they verify there is data available.
 
 This race between recvfrom and the event processing in kqueue/epoll_wait is common
 and largely unavoidable if one is using the same connection for sending and
 receiving notifications on different threads simultaneously.
 
-To support this pattern the library provides an advanced API which allows a customer
-interrupt to be passed in. See 'getNotificationWithConfig' for more details.
+To support this pattern the library provides an advanced API which allows custom
+interrupt to be used in addition to the socket read ready notification.
+See 'getNotificationWithConfig' for more details.
 
 -}
 
@@ -48,6 +49,7 @@ module Database.PostgreSQL.LibPQ.Notify
      , getNotificationWithConfig
      , defaultConfig
      , Config (..)
+     , wakeupRead
      ) where
 
 import           Control.Exception (try, throwIO)
@@ -63,7 +65,7 @@ import           Data.Function(fix)
 import           Data.Bifunctor(first)
 import           Control.Concurrent.Async (race)
 
-
+-- | Options for controlling and instrumenting the behavior of 'getNotificationWithConfig'
 data Config = Config
   { interrupt              :: Maybe (IO ())
   -- ^ Custom interrupt
@@ -84,6 +86,7 @@ data Config = Config
 #endif
   }
 
+-- | Default configuration
 defaultConfig :: Config
 defaultConfig = Config
   { interrupt              = Nothing
