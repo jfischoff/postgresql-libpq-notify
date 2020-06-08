@@ -73,12 +73,12 @@ data Config = Config
   --   before the 'threadWaitReadSTM' action returns.
   , threadWaitReadReturned :: IO ()
   -- ^ Event called if 'threadWaitReadSTM' action returns before the
-  --   'interrupt' returns action (if one is set).
+  --   'interrupt' action returns.
   , startLoop              :: IO ()
   -- ^ Called each time 'getNotificationWithConfig' loops to look for another notification
   , beforeWait             :: IO ()
   -- ^ Event called before the thread will
-  -- wait on new data or 'interrupt' returning.
+  -- wait on 'threadWaitReadSTM' action or 'interrupt' returning.
 #if defined(mingw32_HOST_OS)
   , retryDelay             :: Int
   -- ^ How long to wait in microseconds before retrying on Windows.
