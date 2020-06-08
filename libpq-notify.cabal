@@ -5,7 +5,7 @@ description: Minimal dependency PostgreSQL notifications library. Please see REA
 homepage:            https://github.com/jfischoff/hasql-notifications#readme
 license:             BSD3
 license-file:        LICENSE
-author: Jonathan Fischoff
+author: Jonathan Fischoff, Moritz Kiefeir, Leo P. Smith
 maintainer:          jonathan.g.fischoff@gmail.com
 copyright: 2020
 category: Database
