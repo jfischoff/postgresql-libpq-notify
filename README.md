@@ -1,6 +1,6 @@
 # `postgresql-libpq-notify`
 
-[![build status](https://travis-ci.org/jfischoff/postgresql-libpq-notify.svg?branch=master)]((http://travis-ci.org/jfischoff/postgresql-libpq-notify))
+[![build status](https://travis-ci.org/jfischoff/postgresql-libpq-notify.svg?branch=master)](http://travis-ci.org/jfischoff/postgresql-libpq-notify)
 
 `postgresql-libpq-notify` is a low level and minimal dependency PostgreSQL notification library.
 
