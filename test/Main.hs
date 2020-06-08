@@ -36,22 +36,15 @@ aroundAll withFunc specWith = do
         putMVar stopper ()
         traverse_ cancel =<< readIORef asyncer
 
-  beforeAll theStart $ afterAll theStop specWith
-
-withDBConn :: Options -> (PQ.Connection -> IO a) -> IO a
-withDBConn opts f =
-  bracket (PQ.connectdb (Options.toConnectionString opts))
-          PQ.finish
-          f
+  beforeAll theStart $ afterAll theStop $ specWith
 
 withSetup :: (PQ.Connection -> IO ()) -> IO ()
 withSetup f = either throwIO pure <=< Temp.withDbCache $ \dbCache ->
-  Temp.withConfig (Temp.verboseConfig <> Temp.cacheConfig dbCache) $ \db -> do
-    let localhostOpts = (Temp.toConnectionOptions db)
-          { host = pure "127.0.0.1"
-          }
-
-    withDBConn localhostOpts f
+  Temp.withConfig (Temp.defaultConfig <> Temp.cacheConfig dbCache) $ \db -> do
+    let localhostOpts = Temp.toConnectionOptions db
+    bracket (PQ.connectdb (Options.toConnectionString localhostOpts))
+      PQ.finish
+      f
 
 spec :: Spec
 spec = aroundAll withSetup $ do
