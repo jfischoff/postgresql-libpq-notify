@@ -36,7 +36,7 @@ aroundAll withFunc specWith = do
         putMVar stopper ()
         traverse_ cancel =<< readIORef asyncer
 
-  beforeAll theStart $ afterAll theStop $ specWith
+  beforeAll theStart $ afterAll theStop specWith
 
 withDBConn :: Options -> (PQ.Connection -> IO a) -> IO a
 withDBConn opts f =
