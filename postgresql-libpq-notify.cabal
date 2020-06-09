@@ -1,5 +1,5 @@
 name: postgresql-libpq-notify
-version: 0.1.0.0
+version: 0.2.0.0
 synopsis: Minimal dependency PostgreSQL notifications library
 description: Minimal dependency PostgreSQL notifications library. Please see README.md
 homepage:            https://github.com/jfischoff/postgresql-libpq-notify#readme
