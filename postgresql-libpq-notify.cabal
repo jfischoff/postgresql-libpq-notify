@@ -18,7 +18,6 @@ library
   hs-source-dirs: src
   exposed-modules: Database.PostgreSQL.LibPQ.Notify
   build-depends: base < 5
-               , async
                , postgresql-libpq
                , stm
   ghc-options: -Wall
