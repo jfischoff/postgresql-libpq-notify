@@ -25,21 +25,13 @@ likely cheaper on the client side as well.
 <http://hackage.haskell.org/trac/ghc/ticket/7353>
 
 PostgreSQL notifications support using the same connection for sending and
-receiving notifications. This pattern is particularly useful in tests and
-probably not that useful otherwise.
+receiving notifications.
 
-This library relies on receiving OS notifications that new data is available to
-read from the connection's socket. However both epoll_wait and kqueue do
-not return if recvfrom is able to clear the socket receive buffer
-before they verify there is data available.
+However this implementation cannot support this usage pattern.
 
-This race between recvfrom and the event processing in kqueue/epoll_wait is common
-and largely unavoidable if one is using the same connection for sending and
-receiving notifications on different threads simultaneously.
-
-To support this pattern the library provides an advanced API which allows custom
-interrupt to be used in addition to the socket read ready notification.
-See 'getNotificationWithConfig' for more details.
+This implementation favors low latency by utilizing socket read notifications.
+However a consequence of this implementation choice is the connection used
+to wait for the notification cannot be used for anything else.
 
 -}
 
@@ -62,19 +54,10 @@ import           Control.Concurrent.STM(atomically)
 #endif
 import           Data.Function(fix)
 import           Data.Bifunctor(first)
-import           Control.Concurrent.Async (race)
 
 -- | Options for controlling and instrumenting the behavior of 'getNotificationWithConfig'
 data Config = Config
-  { interrupt              :: Maybe (IO ())
-  -- ^ Custom interrupt
-  , interrupted            :: IO ()
-  -- ^ Event called if the 'interrupt' is set and returns
-  --   before the 'threadWaitReadSTM' action returns.
-  , threadWaitReadReturned :: IO ()
-  -- ^ Event called if 'threadWaitReadSTM' action returns before the
-  --   'interrupt' action returns.
-  , startLoop              :: IO ()
+  { startLoop              :: IO ()
   -- ^ Called each time 'getNotificationWithConfig' loops to look for another notification
   , beforeWait             :: IO ()
   -- ^ Event called before the thread will
@@ -88,17 +71,12 @@ data Config = Config
 -- | Default configuration
 defaultConfig :: Config
 defaultConfig = Config
-  { interrupt              = Nothing
-  , interrupted            = pure ()
-  , threadWaitReadReturned = pure ()
-  , startLoop              = pure ()
+  { startLoop              = pure ()
   , beforeWait             = pure ()
 #if defined(mingw32_HOST_OS)
   , retryDelay             = 100000
 #endif
   }
-
-data RetryOrReturn = Retry (IO (Either () ())) | Return PQ.Notify
 
 funcName :: String
 funcName = "Hasql.Notification.getNotification"
@@ -139,24 +117,16 @@ deliver notifications while a connection is inside a transaction.
 -}
 getNotificationWithConfig
   :: Config
-  -- ^
-  -> (forall a. c -> (PQ.Connection -> IO a) -> IO a)
-  -- ^ This is a way to get a connection from a 'c'.
-  --   A concrete example would be if 'c' is 'MVar PQ.Connection'
-  --   and then this function would be 'withMVar'
-  -> c
-  -- ^ A type that can used to provide a connection when
-  --   used with the former argument. Typically a concurrency
-  --   primitive like 'MVar PQ.Connection'
+  -- ^ 'Config' to instrument and configure the retry period on Windows.
+  -> PQ.Connection
+  -- ^ The connection. The connection cannot be used for anything else
+  --   while waiting on the notification or this call might never return.
   -> IO (Either IOError PQ.Notify)
-getNotificationWithConfig Config {..} withConnection conn = fmap (first setLoc) $ try $ fix $ \next -> do
-    -- We try to get the notification or register a file descriptor callback
-    -- while holding the lock. We then give up the lock to wait.
-    -- That is why code is broken up into these two sections.
+getNotificationWithConfig Config {..} c = fmap (first setLoc) $ try $ fix $ \next -> do
     startLoop
-    e <- withConnection conn $ \c -> PQ.consumeInput c >> PQ.notifies c >>= \case
+    PQ.notifies c >>= \case
       -- We found a notification just return it
-      Just x -> pure $ Return x
+      Just x -> pure x
       -- There wasn't a notification so we need to register to wait on the file handle
       Nothing -> PQ.socket c >>= \case
         -- This is an odd error
@@ -173,15 +143,10 @@ getNotificationWithConfig Config {..} withConnection conn = fmap (first setLoc) 
           -- with the custom interrupt event if one is provided
           let fileNotification = atomically action
 #endif
-          pure $ Retry $ maybe (pure <$> fileNotification) (fileNotification `race`) interrupt
-
-    case e of
-      Retry raceResult -> do
-        beforeWait
-        -- Wait on either threadWaitReadSTM action or the custom interrupt
-        either (const interrupted) (const threadWaitReadReturned) =<< raceResult
-        next
-      Return x -> pure x
+          beforeWait
+          fileNotification
+          _ <- PQ.consumeInput c
+          next
 
 {-|
 Returns a single notification.  If no notifications are
@@ -197,13 +162,8 @@ Note that PostgreSQL does not
 deliver notifications while a connection is inside a transaction.
 -}
 getNotification
-  :: (forall a. c -> (PQ.Connection -> IO a) -> IO a)
-  -- ^ This is a way to get a connection from a 'c'.
-  --   A concrete example would be if 'c' is 'MVar PQ.Connection'
-  --   and then this function would be 'withMVar'
-  -> c
-  -- ^ A type that can used to provide a connection when
-  --   used with the former argument. Typically a concurrency
-  --   primitive like 'MVar PQ.Connection'
+  :: PQ.Connection
+  -- ^ The connection. The connection cannot be used for anything else
+  --   while waiting on the notification or this call might never return.
   -> IO (Either IOError PQ.Notify)
 getNotification = getNotificationWithConfig defaultConfig
